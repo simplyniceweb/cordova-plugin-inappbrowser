@@ -228,8 +228,7 @@ public class InAppBrowser extends CordovaPlugin {
                                 url.startsWith(WebView.SCHEME_MAILTO) ||
                                 url.startsWith(WebView.SCHEME_GEO) ||
                                 url.startsWith("maps:") ||
-                                url.startsWith("intent:") ||
-                                url.startsWith("ideal-ing-nl:"))
+                                url.startsWith("intent:"))
                         {
                             try {
                                 LOG.d(LOG_TAG, "loading in dialer");
@@ -1196,31 +1195,7 @@ public class InAppBrowser extends CordovaPlugin {
         @SuppressWarnings("deprecation")
         @Override
         public boolean shouldOverrideUrlLoading(WebView webView, String url) {
-            if (url.startsWith("intent:")) {
-                try {
-                    Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
-                    if (intent.resolveActivity(getActivity().getPackageManager()) != null) {
-                        getActivity().startActivity(intent);
-                        return true;
-                    }
-                    //try to find fallback url
-                    String fallbackUrl = intent.getStringExtra("browser_fallback_url");
-                    if (fallbackUrl != null) {
-                        webView.loadUrl(fallbackUrl);
-                        return true;
-                    }
-                    //invite to install
-                    Intent marketIntent = new Intent(Intent.ACTION_VIEW).setData(
-                            Uri.parse("market://details?id=" + intent.getPackage()));
-                    if (marketIntent.resolveActivity(packageManager) != null) {
-                        getActivity().startActivity(marketIntent);
-                        return true;
-                    }
-                } catch (URISyntaxException e) {
-                    //not an intent uri
-                }
-            }
-            return true;//do nothing in other cases
+            return shouldOverrideUrlLoading(url, null);
         }
 
         /**
@@ -1235,33 +1210,7 @@ public class InAppBrowser extends CordovaPlugin {
         @TargetApi(Build.VERSION_CODES.N)
         @Override
         public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest request) {
-            val url = request.getUrl().toString();
-
-            if (url.startsWith("intent:")) {
-                    try {
-                        Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
-                        if (intent.resolveActivity(getActivity().getPackageManager()) != null) {
-                            getActivity().startActivity(intent);
-                            return true;
-                        }
-                        //try to find fallback url
-                        String fallbackUrl = intent.getStringExtra("browser_fallback_url");
-                        if (fallbackUrl != null) {
-                            webView.loadUrl(fallbackUrl);
-                            return true;
-                        }
-                        //invite to install
-                        Intent marketIntent = new Intent(Intent.ACTION_VIEW).setData(
-                                Uri.parse("market://details?id=" + intent.getPackage()));
-                        if (marketIntent.resolveActivity(packageManager) != null) {
-                            getActivity().startActivity(marketIntent);
-                            return true;
-                        }
-                    } catch (URISyntaxException e) {
-                        //not an intent uri
-                    }
-                }
-                return true;//do nothing in other cases
+            return shouldOverrideUrlLoading(stringUrl, request.getMethod());
         }
 
         /**
@@ -1312,7 +1261,17 @@ public class InAppBrowser extends CordovaPlugin {
                 }
             }
 
-            if (url.startsWith(WebView.SCHEME_TEL)) {
+
+            if (url.startsWith("intent:")) {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setData(Uri.parse(url));
+                    cordova.getActivity().startActivity(intent);
+                    override = true;
+                } catch (android.content.ActivityNotFoundException e) {
+                    LOG.e(LOG_TAG, "Error with " + url + ": " + e.toString());
+                }
+            } else if (url.startsWith(WebView.SCHEME_TEL)) {
                 try {
                     Intent intent = new Intent(Intent.ACTION_DIAL);
                     intent.setData(Uri.parse(url));
@@ -1321,7 +1280,7 @@ public class InAppBrowser extends CordovaPlugin {
                 } catch (android.content.ActivityNotFoundException e) {
                     LOG.e(LOG_TAG, "Error dialing " + url + ": " + e.toString());
                 }
-            } else if (url.startsWith("geo:") || url.startsWith(WebView.SCHEME_MAILTO) || url.startsWith("market:") || url.startsWith("intent:")) {
+            } else if (url.startsWith("geo:") || url.startsWith(WebView.SCHEME_MAILTO) || url.startsWith("market:")) {
                 try {
                     Intent intent = new Intent(Intent.ACTION_VIEW);
                     intent.setData(Uri.parse(url));
