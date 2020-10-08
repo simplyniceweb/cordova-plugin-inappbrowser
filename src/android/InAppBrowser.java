@@ -1196,21 +1196,31 @@ public class InAppBrowser extends CordovaPlugin {
         @SuppressWarnings("deprecation")
         @Override
         public boolean shouldOverrideUrlLoading(WebView webView, String url) {
-            if (url.startsWith("intent://")) {
-                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
-                if (intent != null) {
-                    val fallBackUrl = intent.getStringExtra("browser_fallback_url")
-
-                    return if (fallBackUrl != null) {
-                        webView.loadUrl(fallBackUrl)
-                        true
-                    } else {
-                        false
+            if (url.startsWith("intent:")) {
+                try {
+                    Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                    if (intent.resolveActivity(getActivity().getPackageManager()) != null) {
+                        getActivity().startActivity(intent);
+                        return true;
                     }
+                    //try to find fallback url
+                    String fallbackUrl = intent.getStringExtra("browser_fallback_url");
+                    if (fallbackUrl != null) {
+                        webView.loadUrl(fallbackUrl);
+                        return true;
+                    }
+                    //invite to install
+                    Intent marketIntent = new Intent(Intent.ACTION_VIEW).setData(
+                            Uri.parse("market://details?id=" + intent.getPackage()));
+                    if (marketIntent.resolveActivity(packageManager) != null) {
+                        getActivity().startActivity(marketIntent);
+                        return true;
+                    }
+                } catch (URISyntaxException e) {
+                    //not an intent uri
                 }
             }
-            
-            return shouldOverrideUrlLoading(url, null);
+            return true;//do nothing in other cases
         }
 
         /**
@@ -1225,23 +1235,33 @@ public class InAppBrowser extends CordovaPlugin {
         @TargetApi(Build.VERSION_CODES.N)
         @Override
         public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest request) {
-            val stringUrl = request.getUrl().toString();
+            val url = request.getUrl().toString();
 
-            if (stringUrl.startsWith("intent://")) {
-                val intent = Intent.parseUri(stringUrl, Intent.URI_INTENT_SCHEME)
-                if (intent != null) {
-                    val fallBackUrl = intent.getStringExtra("browser_fallback_url")
-
-                    return if (fallBackUrl != null) {
-                        webView.loadUrl(fallBackUrl)
-                        true
-                    } else {
-                        false
+            if (url.startsWith("intent:")) {
+                    try {
+                        Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                        if (intent.resolveActivity(getActivity().getPackageManager()) != null) {
+                            getActivity().startActivity(intent);
+                            return true;
+                        }
+                        //try to find fallback url
+                        String fallbackUrl = intent.getStringExtra("browser_fallback_url");
+                        if (fallbackUrl != null) {
+                            webView.loadUrl(fallbackUrl);
+                            return true;
+                        }
+                        //invite to install
+                        Intent marketIntent = new Intent(Intent.ACTION_VIEW).setData(
+                                Uri.parse("market://details?id=" + intent.getPackage()));
+                        if (marketIntent.resolveActivity(packageManager) != null) {
+                            getActivity().startActivity(marketIntent);
+                            return true;
+                        }
+                    } catch (URISyntaxException e) {
+                        //not an intent uri
                     }
                 }
-            }
-
-            return shouldOverrideUrlLoading(stringUrl, request.getMethod());
+                return true;//do nothing in other cases
         }
 
         /**
