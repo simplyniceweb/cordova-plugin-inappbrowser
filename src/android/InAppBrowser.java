@@ -223,7 +223,13 @@ public class InAppBrowser extends CordovaPlugin {
                             webView.loadUrl(url);
                         }
                         //Load the dialer
-                        else if (url.startsWith(WebView.SCHEME_TEL))
+                        else if (url.startsWith(WebView.SCHEME_TEL) || 
+                                url.startsWith("sms:") ||
+                                url.startsWith(WebView.SCHEME_MAILTO) ||
+                                url.startsWith(WebView.SCHEME_GEO) ||
+                                url.startsWith("maps:") ||
+                                url.startsWith("intent:") ||
+                                url.startsWith("ideal-ing-nl:"))
                         {
                             try {
                                 LOG.d(LOG_TAG, "loading in dialer");
@@ -1190,6 +1196,20 @@ public class InAppBrowser extends CordovaPlugin {
         @SuppressWarnings("deprecation")
         @Override
         public boolean shouldOverrideUrlLoading(WebView webView, String url) {
+            if (url.startsWith("intent://")) {
+                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                if (intent != null) {
+                    val fallBackUrl = intent.getStringExtra("browser_fallback_url")
+
+                    return if (fallBackUrl != null) {
+                        webView.loadUrl(fallBackUrl)
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+            
             return shouldOverrideUrlLoading(url, null);
         }
 
@@ -1205,7 +1225,23 @@ public class InAppBrowser extends CordovaPlugin {
         @TargetApi(Build.VERSION_CODES.N)
         @Override
         public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest request) {
-            return shouldOverrideUrlLoading(request.getUrl().toString(), request.getMethod());
+            val stringUrl = request.getUrl().toString();
+
+            if (stringUrl.startsWith("intent://")) {
+                val intent = Intent.parseUri(stringUrl, Intent.URI_INTENT_SCHEME)
+                if (intent != null) {
+                    val fallBackUrl = intent.getStringExtra("browser_fallback_url")
+
+                    return if (fallBackUrl != null) {
+                        webView.loadUrl(fallBackUrl)
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+
+            return shouldOverrideUrlLoading(stringUrl, request.getMethod());
         }
 
         /**
